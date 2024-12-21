@@ -105,7 +105,11 @@ class Orpheus:
         self.session_storage_location = os.path.join(self.data_folder_base, 'loginstorage.bin')
 
         os.makedirs('config', exist_ok=True)
-        self.settings = json.loads(open(self.settings_location, 'r').read()) if os.path.exists(self.settings_location) else {}
+        try:
+            content = open(self.settings_location, 'r').read() if os.path.exists(self.settings_location) else ""
+            self.settings = json.loads(content) if content.strip() else {}
+        except json.JSONDecodeError:
+            self.settings = {}
 
         try:
             if self.settings['global']['advanced']['debug_mode']: logging.basicConfig(level=logging.DEBUG)
@@ -253,8 +257,8 @@ class Orpheus:
                 for setting in self.default_global_settings[setting_type]:
                     # Also check if the type is identical
                     if (setting in old_settings['global'][setting_type] and
-                            isinstance(self.default_global_settings[setting_type][setting],
-                                       type(old_settings['global'][setting_type][setting]))):
+                            isinstance(old_settings['global'][setting_type][setting],
+                                     type(self.default_global_settings[setting_type][setting]))):
                         global_settings[setting_type][setting] = old_settings['global'][setting_type][setting]
                     else:
                         global_settings[setting_type][setting] = self.default_global_settings[setting_type][setting]
@@ -288,7 +292,11 @@ class Orpheus:
                     if i in old_settings['modules'] and j in old_settings['modules'][i]:
                         module_settings[i][j] = old_settings['modules'][i][j]
                     else:
-                        module_settings[i][j] = settings_to_parse[j]
+                        # Convert any non-serializable types to their string representation
+                        value = settings_to_parse[j]
+                        if isinstance(value, type):
+                            value = value.__name__
+                        module_settings[i][j] = value
                         new_setting_detected = True
             else:
                 module_settings.pop(i)
